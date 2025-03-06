@@ -12,8 +12,8 @@
 ********************************************************************************************/
 
 #include "raylib.h"
-
 #include <stdlib.h>     // Required for: malloc(), free()
+#include <time.h>
 
 #define MAZE_WIDTH          64
 #define MAZE_HEIGHT         64
@@ -48,11 +48,11 @@ int main(void)
 
     // Random seed defines the random numbers generation,
     // always the same if using the same seed
-    SetRandomSeed(67218);
+    SetRandomSeed((unsigned int)time(NULL));
 
     // Generate maze image using the grid-based generator
     // TODO: [1p] Implement GenImageMaze() function with required parameters
-    Image imMaze = GenImageMaze(MAZE_WIDTH, MAZE_HEIGHT, 4, 4, 0.75f);
+    Image imMaze = GenImageMaze(MAZE_WIDTH, MAZE_HEIGHT, 4, 4, 0.5f);
 
     // Load a texture to be drawn on screen from our image data
     // WARNING: If imMaze pixel data is modified, texMaze needs to be re-loaded
@@ -193,9 +193,77 @@ int main(void)
 // NOTE: Color scheme used: WHITE = Wall, BLACK = Walkable, RED = Item
 Image GenImageMaze(int width, int height, int spacingRows, int spacingCols, float pointChance)
 {
-    Image imMaze = { 0 };
+    // 1) Creamos la imagen rellena de blanco
+    Image imMaze = GenImageColor(width, height, WHITE);
+
+    // 2) Pintamos los bordes en negro:
+    // Fila superior e inferior
+    for (int x = 0; x < width; x++)
+    {
+        ImageDrawPixel(&imMaze, x, 0, BLACK);              // Borde superior
+        ImageDrawPixel(&imMaze, x, height - 1, BLACK);       // Borde inferior
+    }
+    // Columna izquierda y derecha
+    for (int y = 0; y < height; y++)
+    {
+        ImageDrawPixel(&imMaze, 0, y, BLACK);              // Borde izquierdo
+        ImageDrawPixel(&imMaze, width - 1, y, BLACK);      // Borde derecho
+    }
+
+    // 3) Para cada píxel del borde (excepto esquinas), evaluamos de forma dinámica:
     
-    // TODO: [1p] Implement maze image generation algorithm
-    
+    // Borde superior: para x de 1 a width-2, pintar (x,1) solo si se decide, y si se pinta, saltar el siguiente
+    for (int x = 1; x < width - 1; )
+    {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
+        {
+            ImageDrawPixel(&imMaze, x, 1, BLACK);
+            x += 2;
+        }
+        else
+        {
+            x++;
+        }
+    }
+    // Borde inferior: pintar (x, height-2)
+    for (int x = 1; x < width - 1; )
+    {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
+        {
+            ImageDrawPixel(&imMaze, x, height - 2, BLACK);
+            x += 2;
+        }
+        else
+        {
+            x++;
+        }
+    }
+    // Borde izquierdo: para y de 1 a height-2, pintar (1, y)
+    for (int y = 1; y < height - 1; )
+    {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
+        {
+            ImageDrawPixel(&imMaze, 1, y, BLACK);
+            y += 2;
+        }
+        else
+        {
+            y++;
+        }
+    }
+    // Borde derecho: para y de 1 a height-2, pintar (width-2, y)
+    for (int y = 1; y < height - 1; )
+    {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
+        {
+            ImageDrawPixel(&imMaze, width - 2, y, BLACK);
+            y += 2;
+        }
+        else
+        {
+            y++;
+        }
+    }
+
     return imMaze;
 }
