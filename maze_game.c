@@ -193,30 +193,9 @@ int main(void)
 // NOTE: Color scheme used: WHITE = Wall, BLACK = Walkable, RED = Item
 Image GenImageMaze(int width, int height, int spacingRows, int spacingCols, float pointChance)
 {
-    Image imMaze = GenImageColor(width, height, BLACK);
+    Image imMaze = { 0 };
     
     // TODO: [1p] Implement maze image generation algorithm
-    for(int y = 0; y < height; y++)
-    {
-        for(int x = 0; x < width; x++)
-        {
-            if(x == 0 || x == width - 1 || y == 0 || y == height - 1)
-            {
-                ImageDrawPixel(&imMaze, x, y, WHITE);
-            }
-        }
-    }
-    
-    for(int y = 1; y < height - 1; y += spacingRows)
-    {
-        for(int x = 0; x < width - 1; x += spacingCols)
-        {
-            if(GetRandomValue(0, 100) < pointChance * 100)
-            {
-                ImageDrawPixel(&imMaze, x, y, WHITE);
-            }
-        }
-    }
     
     return imMaze;
 }
