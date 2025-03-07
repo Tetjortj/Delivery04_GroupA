@@ -70,7 +70,8 @@ int main(void)
     };
 
     // Define player position and size
-    Rectangle player = { mazePosition.x + 1*MAZE_SCALE + 2, mazePosition.y + 1*MAZE_SCALE + 2, 4, 4 };
+    Rectangle player = { mazePosition.x + 1*MAZE_SCALE + 2, mazePosition.y + 1*MAZE_SCALE + 2, 8, 8 };
+
 
     // Camera 2D for 2d gameplay mode
     // TODO: [2p] Initialize camera parameters as required
@@ -132,32 +133,43 @@ int main(void)
             // 3) Verificamos colisión con pared
             //    Para ello, obtenemos el centro del jugador y convertimos a coordenadas de celda
             //    Revisamos el color en imMaze: si es WHITE => pared => no movemos.
-            float centerX = newX + player.width/2;
-            float centerY = newY + player.height/2;
-            int cellX = (int)((centerX - mazePosition.x)/MAZE_SCALE);
-            int cellY = (int)((centerY - mazePosition.y)/MAZE_SCALE);
-            if (cellX < 0) cellX = 0;
-            if (cellX >= MAZE_WIDTH) cellX = MAZE_WIDTH - 1;
-            if (cellY < 0) cellY = 0;
-            if (cellY >= MAZE_HEIGHT) cellY = MAZE_HEIGHT - 1;
+            // Calcular las posiciones de las 4 esquinas en coordenadas de celda
+            int left   = (int)((newX - mazePosition.x) / MAZE_SCALE);
+            int right  = (int)(((newX + player.width) - mazePosition.x) / MAZE_SCALE);
+            int top    = (int)((newY - mazePosition.y) / MAZE_SCALE);
+            int bottom = (int)(((newY + player.height) - mazePosition.y) / MAZE_SCALE);
 
-            // Obtenemos el color de esa celda
-            Color cellColor = GetImageColor(imMaze, cellX, cellY);
+            // Asegurarse de no salir de los límites
+            if (left < 0) left = 0;
+            if (right >= MAZE_WIDTH) right = MAZE_WIDTH - 1;
+            if (top < 0) top = 0;
+            if (bottom >= MAZE_HEIGHT) bottom = MAZE_HEIGHT - 1;
 
-            // Si NO es blanco, podemos movernos
-            if (!ColorIsEqual(cellColor, WHITE))
+            // Comprobar las 4 esquinas del jugador
+            bool collision = false;
+            if (ColorIsEqual(GetImageColor(imMaze, left, top), WHITE)) collision = true;
+            if (ColorIsEqual(GetImageColor(imMaze, right, top), WHITE)) collision = true;
+            if (ColorIsEqual(GetImageColor(imMaze, left, bottom), WHITE)) collision = true;
+            if (ColorIsEqual(GetImageColor(imMaze, right, bottom), WHITE)) collision = true;
+
+            // Solo actualizamos la posición si no hay colisión
+            if (!collision)
             {
-                // Actualizamos posición del jugador
                 player.x = newX;
                 player.y = newY;
             }
             
             // 4) Comprobar si hemos llegado al endCell
             //    Basta con comparar las celdas del jugador con endCell
-            if ((cellX == endCell.x) && (cellY == endCell.y))
+            // Calcular la celda actual del jugador usando el centro del rectángulo
+            int centerCellX = (int)((player.x + player.width/2 - mazePosition.x) / MAZE_SCALE);
+            int centerCellY = (int)((player.y + player.height/2 - mazePosition.y) / MAZE_SCALE);
+
+            if ((centerCellX == endCell.x) && (centerCellY == endCell.y))
             {
                 DrawText("YOU REACHED THE END!", 200, 200, 40, GREEN);
             }
+
             
             // TODO: [1p] Camera 2D system following player movement around the map
             // Update Camera2D parameters as required to follow player and zoom control
@@ -254,7 +266,7 @@ int main(void)
                 // TODO: Draw game UI (score, time...) using custom sprites/fonts
                 // NOTE: Game UI does not receive the camera2d transformations,
                 // it is drawn in screen space coordinates directly
-                DrawText("GAME MODE", 10, 10, 20, DARKGRAY);
+                DrawText("GAME MODE", 10, 40, 20, DARKGRAY);
             }
             else if (currentMode == 1) // Editor mode
             {
@@ -268,8 +280,11 @@ int main(void)
                 DrawRectangleRec(player, BLUE);
 
                 // TODO: Draw editor UI required elements
-                DrawText("EDITOR MODE", 10, 10, 20, DARKGRAY);
-                DrawText("Left = BLACK, Middle = RED, Right = WHITE, Right+Ctrl = GREEN", 10, 40, 20, DARKGRAY);
+                DrawText("EDITOR MODE", 10, 40, 20, DARKGRAY);
+                DrawText("Left = BLACK", 10, 60, 20, DARKGRAY);
+                DrawText("Middle = RED", 10, 80, 20, DARKGRAY);
+                DrawText("Right = WHITE", 10, 100, 20, DARKGRAY);
+                DrawText("Right+Ctrl = GREEN", 10, 120, 20, DARKGRAY);
             }
 
             DrawFPS(10, 10);
