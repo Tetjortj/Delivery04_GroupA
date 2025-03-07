@@ -90,8 +90,11 @@ int main(void)
     int score = 0;
     
     // Define textures to be used as our "biomes"
-    Texture texBiomes[4] = { 0 };
+    Texture texBiomes[5] = { 0 };
     texBiomes[0] = LoadTexture("resources/maze_atlas01.png");
+    texBiomes[1] = LoadTexture("resources/maze_atlas02.png");
+    texBiomes[2] = LoadTexture("resources/maze_atlas03.png");
+    texBiomes[3] = LoadTexture("resources/maze_atlas04.png");
     // TODO: Load additional textures for different biomes
     int currentBiome = 0;
 
@@ -107,6 +110,12 @@ int main(void)
         //----------------------------------------------------------------------------------
         // Select current mode as desired
         if (IsKeyPressed(KEY_SPACE)) currentMode = !currentMode; // Toggle mode: 0-Game, 1-Editor
+        
+        // Teclas para cambiar bioma (1, 2, 3, 4)
+        if (IsKeyPressed(KEY_ONE)) currentBiome = 0;
+        if (IsKeyPressed(KEY_TWO)) currentBiome = 1;
+        if (IsKeyPressed(KEY_THREE)) currentBiome = 2;
+        if (IsKeyPressed(KEY_FOUR)) currentBiome = 3;
 
         if (currentMode == 0) // Game mode
         {
@@ -304,7 +313,87 @@ int main(void)
                 BeginMode2D(camera2d);
 
                     // TODO: Draw maze walls and floor using current texture biome 
-                    DrawTextureEx(texMaze, mazePosition, 0.0f, MAZE_SCALE, WHITE);
+                    //DrawTextureEx(texBiomes[currentBiome], mazePosition, 0.0f, MAZE_SCALE, WHITE);
+                    
+                    // CHANGED: Dibujar el laberinto celda a celda
+                    for (int y = 0; y < MAZE_HEIGHT; y++)
+                    {
+                        for (int x = 0; x < MAZE_WIDTH; x++)
+                        {
+                            // 1) Obtener color de la celda en imMaze
+                            Color cellColor = GetImageColor(imMaze, x, y);
+
+                            // 2) Definir rectángulo de destino (posición en pantalla)
+                            Rectangle destRect = {
+                                mazePosition.x + x*MAZE_SCALE,
+                                mazePosition.y + y*MAZE_SCALE,
+                                MAZE_SCALE, MAZE_SCALE
+                            };
+
+                            // 3) Preparar rectángulo fuente (qué parte de la textura de 256×256 se usará)
+                            //    Cada sub-imagen es 128×128:
+                            //      top-left(0,0), top-right(128,0), bottom-left(0,128), bottom-right(128,128)
+                            Rectangle srcRect = { 0, 0, 128, 128 }; // Valor por defecto
+
+                            // CHANGED: Saber si esta celda es un borde exterior
+                            bool isBorder = (x == 0 || y == 0 || x == MAZE_WIDTH-1 || y == MAZE_HEIGHT-1);
+
+                            // 4) Elegir sub-rectángulo según tu descripción
+                            //    - Parte de arriba (top-left, top-right) = muros exteriores
+                            //    - Parte de abajo izq = muros interiores
+                            //    - Parte de abajo der = suelo
+                            if (ColorIsEqual(cellColor, WHITE))
+                            {
+                                // Si es borde exterior
+                                if (isBorder)
+                                {
+                                    // Ejemplo: usar top-left (0,0,128,128) para muros exteriores
+                                    // (Si quieres usar top-right para variar, pondrías {128,0,128,128})
+                                    srcRect.x = 0;    // top-left
+                                    srcRect.y = 0;
+                                }
+                                else
+                                {
+                                    // Muros interiores => bottom-left (0,128,128,128)
+                                    srcRect.x = 0;
+                                    srcRect.y = 128;
+                                }
+                            }
+                            else if (ColorIsEqual(cellColor, BLACK))
+                            {
+                                // Suelo => bottom-right (128,128,128,128)
+                                srcRect.x = 128;
+                                srcRect.y = 128;
+                            }
+                            else if (ColorIsEqual(cellColor, RED))
+                            {
+                                // ADDED: Dibujar directamente un rectángulo rojo
+                                DrawRectangleRec(destRect, RED);
+                                continue;  // Saltamos el resto del bucle para esta celda
+                            }
+                            else if (ColorIsEqual(cellColor, GREEN))
+                            {
+                                // ADDED: Dibujar directamente un rectángulo verde
+                                DrawRectangleRec(destRect, GREEN);
+                                continue;
+                            }
+
+                            // Asegurar ancho/alto del srcRect = 128
+                            srcRect.width = 128;
+                            srcRect.height = 128;
+
+                            // 5) Dibujar con DrawTexturePro()
+                            DrawTexturePro(
+                                texBiomes[currentBiome], // O texMaze si no usas array de texturas
+                                srcRect,
+                                destRect,
+                                (Vector2){0, 0},        // Offset
+                                0.0f,                   // Rotación
+                                WHITE
+                            );
+                        }
+                    }
+
              
                     // TODO: Draw player rectangle or sprite at player position
                     DrawRectangleRec(player, BLUE);
@@ -322,7 +411,87 @@ int main(void)
             else if (currentMode == 1) // Editor mode
             {
                 // Draw generated maze texture, scaled and centered on screen 
-                DrawTextureEx(texMaze, mazePosition, 0.0f, MAZE_SCALE, WHITE);
+                //DrawTextureEx(texBiomes[currentBiome], mazePosition, 0.0f, MAZE_SCALE, WHITE);
+                
+                // CHANGED: Dibujar el laberinto celda a celda
+                for (int y = 0; y < MAZE_HEIGHT; y++)
+                {
+                    for (int x = 0; x < MAZE_WIDTH; x++)
+                    {
+                        // 1) Obtener color de la celda en imMaze
+                        Color cellColor = GetImageColor(imMaze, x, y);
+
+                        // 2) Definir rectángulo de destino (posición en pantalla)
+                        Rectangle destRect = {
+                            mazePosition.x + x*MAZE_SCALE,
+                            mazePosition.y + y*MAZE_SCALE,
+                            MAZE_SCALE, MAZE_SCALE
+                        };
+
+                        // 3) Preparar rectángulo fuente (qué parte de la textura de 256×256 se usará)
+                        //    Cada sub-imagen es 128×128:
+                        //      top-left(0,0), top-right(128,0), bottom-left(0,128), bottom-right(128,128)
+                        Rectangle srcRect = { 0, 0, 128, 128 }; // Valor por defecto
+
+                        // CHANGED: Saber si esta celda es un borde exterior
+                        bool isBorder = (x == 0 || y == 0 || x == MAZE_WIDTH-1 || y == MAZE_HEIGHT-1);
+
+                        // 4) Elegir sub-rectángulo según tu descripción
+                        //    - Parte de arriba (top-left, top-right) = muros exteriores
+                        //    - Parte de abajo izq = muros interiores
+                        //    - Parte de abajo der = suelo
+                        if (ColorIsEqual(cellColor, WHITE))
+                        {
+                            // Si es borde exterior
+                            if (isBorder)
+                            {
+                                // Ejemplo: usar top-left (0,0,128,128) para muros exteriores
+                                // (Si quieres usar top-right para variar, pondrías {128,0,128,128})
+                                srcRect.x = 0;    // top-left
+                                srcRect.y = 0;
+                            }
+                            else
+                            {
+                                // Muros interiores => bottom-left (0,128,128,128)
+                                srcRect.x = 0;
+                                srcRect.y = 128;
+                            }
+                        }
+                        else if (ColorIsEqual(cellColor, BLACK))
+                        {
+                            // Suelo => bottom-right (128,128,128,128)
+                            srcRect.x = 128;
+                            srcRect.y = 128;
+                        }
+                        else if (ColorIsEqual(cellColor, RED))
+                        {
+                            // ADDED: Dibujar directamente un rectángulo rojo
+                            DrawRectangleRec(destRect, RED);
+                            continue;  // Saltamos el resto del bucle para esta celda
+                        }
+                        else if (ColorIsEqual(cellColor, GREEN))
+                        {
+                            // ADDED: Dibujar directamente un rectángulo verde
+                            DrawRectangleRec(destRect, GREEN);
+                            continue;
+                        }
+
+                        // Asegurar ancho/alto del srcRect = 128
+                        srcRect.width = 128;
+                        srcRect.height = 128;
+
+                        // 5) Dibujar con DrawTexturePro()
+                        DrawTexturePro(
+                            texBiomes[currentBiome], // O texMaze si no usas array de texturas
+                            srcRect,
+                            destRect,
+                            (Vector2){0, 0},        // Offset
+                            0.0f,                   // Rotación
+                            WHITE
+                        );
+                    }
+                }
+
 
                 // Draw lines rectangle over texture, scaled and centered on screen 
                 DrawRectangleLines(mazePosition.x, mazePosition.y, MAZE_WIDTH*MAZE_SCALE, MAZE_HEIGHT*MAZE_SCALE, RED);
@@ -350,6 +519,10 @@ int main(void)
     UnloadImage(imMaze);        // Unload maze image from RAM (CPU)
 
     // TODO: Unload all loaded resources
+    UnloadTexture(texBiomes[0]);
+    UnloadTexture(texBiomes[1]);
+    UnloadTexture(texBiomes[2]);
+    UnloadTexture(texBiomes[3]); 
     
     CloseWindow();              // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
