@@ -121,6 +121,69 @@ int main(void)
             // Once the cell is selected, if mouse button pressed add/remove image pixels
             
             // WARNING: Remember that when imMaze changes, texMaze must be also updated!
+            
+             // 1) Obtener posición del ratón en coordenadas de pantalla
+            Vector2 mousePos = GetMousePosition();
+            
+            // 2) Convertir posición de pantalla a coordenadas de celda en la imagen
+            float mouseXRelative = (mousePos.x - mazePosition.x)/MAZE_SCALE;
+            float mouseYRelative = (mousePos.y - mazePosition.y)/MAZE_SCALE;
+
+            int cellX = (int)mouseXRelative;
+            int cellY = (int)mouseYRelative;
+            
+                        // 3) Comprobar si estamos dentro de los límites de la imagen
+            if ((cellX >= 0) && (cellX < MAZE_WIDTH) &&
+                (cellY >= 0) && (cellY < MAZE_HEIGHT))
+            {
+                // Revisamos qué botón de ratón está siendo pulsado
+                // y cambiamos el color de esa celda en imMaze.
+
+                // BOTÓN IZQUIERDO: BLACK (camino)
+                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+                {
+                    ImageDrawPixel(&imMaze, cellX, cellY, BLACK);
+                    UpdateTexture(texMaze, imMaze.data);  // Refrescar textura
+                }
+                // BOTÓN CENTRAL: RED (ítem)
+                else if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
+                {
+                    ImageDrawPixel(&imMaze, cellX, cellY, RED);
+                    UpdateTexture(texMaze, imMaze.data);
+
+                    // (Opcional) Guardar la posición del ítem en un array 
+                    // para usarlo en el modo juego.
+                    // Ejemplo muy simple:
+                    // for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+                    // {
+                    //     if ((mazeItems[i].x == 0) && (mazeItems[i].y == 0))
+                    //     {
+                    //         mazeItems[i].x = cellX;
+                    //         mazeItems[i].y = cellY;
+                    //         break;
+                    //     }
+                    // }
+                }
+                // BOTÓN DERECHO: WHITE (pared)
+                else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+                {
+                    // Si además mantenemos CTRL, lo ponemos en GREEN (punto final)
+                    if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))
+                    {
+                        ImageDrawPixel(&imMaze, cellX, cellY, GREEN);
+                        UpdateTexture(texMaze, imMaze.data);
+
+                        // (Opcional) Actualizar endCell si queremos que sea la meta
+                        endCell.x = cellX;
+                        endCell.y = cellY;
+                    }
+                    else
+                    {
+                        ImageDrawPixel(&imMaze, cellX, cellY, WHITE);
+                        UpdateTexture(texMaze, imMaze.data);
+                    }
+                }
+            }
 
             // TODO: [2p] Collectible map items: player score
             // Using same mechanism than maze editor, implement an items editor, registering
