@@ -18,7 +18,6 @@
 #define MAZE_WIDTH          64
 #define MAZE_HEIGHT         64
 #define MAZE_SCALE          10.0f
-
 #define MAX_MAZE_ITEMS      16
 
 // Declare new data type: Point
@@ -52,7 +51,7 @@ int main(void)
 
     // Generate maze image using the grid-based generator
     // TODO: [1p] Implement GenImageMaze() function with required parameters
-    Image imMaze = GenImageMaze(MAZE_WIDTH, MAZE_HEIGHT, 4, 4, 0.5f);
+    Image imMaze = GenImageMaze(MAZE_WIDTH, MAZE_HEIGHT, 4, 4, 0.75f);
 
     // Load a texture to be drawn on screen from our image data
     // WARNING: If imMaze pixel data is modified, texMaze needs to be re-loaded
@@ -191,79 +190,132 @@ int main(void)
 
 // Generate procedural maze image, using grid-based algorithm
 // NOTE: Color scheme used: WHITE = Wall, BLACK = Walkable, RED = Item
-Image GenImageMaze(int width, int height, int spacingRows, int spacingCols, float pointChance)
+static Image GenImageMaze(int width, int height, int spacingRows, int spacingCols, float pointChance)
 {
-    // 1) Creamos la imagen rellena de blanco
-    Image imMaze = GenImageColor(width, height, WHITE);
-
-    // 2) Pintamos los bordes en negro:
-    // Fila superior e inferior
+    // 1) Crear un array temporal para guardar la información de cada celda
+    //    0 = Caminable, 1 = Pared
+    unsigned char *mapData = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+    
+    // Inicializar todo el mapa como 0 (caminable)
+    for (int i = 0; i < width * height; i++) mapData[i] = 0;
+    
+    // 2) Poner los bordes del mapa como paredes (1)
+    //    Esto evita que el algoritmo dibuje fuera de los límites
     for (int x = 0; x < width; x++)
     {
-        ImageDrawPixel(&imMaze, x, 0, BLACK);              // Borde superior
-        ImageDrawPixel(&imMaze, x, height - 1, BLACK);       // Borde inferior
+        mapData[0 * width + x] = 1;           // Borde superior
+        mapData[(height - 1) * width + x] = 1; // Borde inferior
     }
-    // Columna izquierda y derecha
     for (int y = 0; y < height; y++)
     {
-        ImageDrawPixel(&imMaze, 0, y, BLACK);              // Borde izquierdo
-        ImageDrawPixel(&imMaze, width - 1, y, BLACK);      // Borde derecho
+        mapData[y * width + 0] = 1;           // Borde izquierdo
+        mapData[y * width + (width - 1)] = 1; // Borde derecho
     }
-
-    // 3) Para cada píxel del borde (excepto esquinas), evaluamos de forma dinámica:
     
-    // Borde superior: para x de 1 a width-2, pintar (x,1) solo si se decide, y si se pinta, saltar el siguiente
-    for (int x = 1; x < width - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
-            ImageDrawPixel(&imMaze, x, 1, BLACK);
-            x += 2;
-        }
-        else
-        {
-            x++;
-        }
-    }
-    // Borde inferior: pintar (x, height-2)
-    for (int x = 1; x < width - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
-            ImageDrawPixel(&imMaze, x, height - 2, BLACK);
-            x += 2;
-        }
-        else
-        {
-            x++;
-        }
-    }
-    // Borde izquierdo: para y de 1 a height-2, pintar (1, y)
-    for (int y = 1; y < height - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
-            ImageDrawPixel(&imMaze, 1, y, BLACK);
-            y += 2;
-        }
-        else
-        {
-            y++;
-        }
-    }
-    // Borde derecho: para y de 1 a height-2, pintar (width-2, y)
-    for (int y = 1; y < height - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
-            ImageDrawPixel(&imMaze, width - 2, y, BLACK);
-            y += 2;
-        }
-        else
-        {
-            y++;
-        }
-    }
+    // 3) Generar y almacenar los puntos aleatorios (con spacing y probabilidad)
+    //    Recorremos la cuadrícula saltando cada spacingRows / spacingCols
+    //    y con pointChance decidimos si ponemos un punto en esa celda
+    int maxPoints = ((height - 2) / spacingRows) * ((width - 2) / spacingCols);
+    Point *points = (Point *)malloc(maxPoints * sizeof(Point));
+    int count = 0;
 
+    for (int y = spacingRows; y < height - 1; y += spacingRows)
+    {
+        for (int x = spacingCols; x < width - 1; x += spacingCols)
+        {
+            float rnd = (float)GetRandomValue(0, 10000)/10000.0f; // Valor entre 0.0 y 1.0
+            if (rnd < pointChance)
+            {
+                points[count].x = x;
+                points[count].y = y;
+                count++;
+            }
+        }
+    }
+    
+    // 4) Barajar (shuffle) el array de puntos para que el orden de trazar paredes sea aleatorio
+    for (int i = 0; i < count - 1; i++)
+    {
+        // Elegimos un índice aleatorio desde i hasta el final
+        int r = GetRandomValue(i, count - 1);
+        // Intercambiamos points[i] con points[r]
+        Point temp = points[i];
+        points[i] = points[r];
+        points[r] = temp;
+    }
+    
+    // 5) Para cada punto, elegir una dirección aleatoria y "avanzar" pintando paredes
+    //    hasta toparse con otra pared o con el borde
+    for (int i = 0; i < count; i++)
+    {
+        int px = points[i].x;
+        int py = points[i].y;
+        
+        // Elegir dirección aleatoria (0=right, 1=left, 2=down, 3=up)
+        int dir = GetRandomValue(0, 3);
+        int dx = 0, dy = 0;
+        
+        switch (dir)
+        {
+            case 0: dx = 1;  dy = 0;  break; // Derecha
+            case 1: dx = -1; dy = 0;  break; // Izquierda
+            case 2: dx = 0;  dy = 1;  break; // Abajo
+            case 3: dx = 0;  dy = -1; break; // Arriba
+        }
+        
+        // Avanzar en la dirección elegida, pintando paredes
+        while (1)
+        {
+            // Si ya es pared o está en el borde, detenemos
+            if (mapData[py * width + px] == 1) break;
+            
+            // Marcamos la celda como pared
+            mapData[py * width + px] = 1;
+            
+            // Avanzamos
+            px += dx;
+            py += dy;
+            
+            // Si salimos del mapa o topamos un borde, terminamos
+            if ((px < 0) || (px >= width) || (py < 0) || (py >= height)) break;
+        }
+    }
+    
+    // Ya no necesitamos el array de puntos
+    free(points);
+    
+    // 6) Crear la Image final y asignar cada pixel según mapData
+    //    Formato: RGBA de 32 bits (PIXELFORMAT_UNCOMPRESSED_R8G8B8A8)
+    Color *pixels = (Color *)malloc(width * height * sizeof(Color));
+    
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            // Si la celda es 1 => Pared (blanco)
+            if (mapData[y * width + x] == 1)
+            {
+                pixels[y * width + x] = WHITE;
+            }
+            else
+            {
+                // 0 => Caminable (negro)
+                pixels[y * width + x] = BLACK;
+            }
+        }
+    }
+    
+    // Liberar el array de celdas (ya tenemos los píxeles listos)
+    free(mapData);
+    
+    // 7) Construir la estructura Image de raylib
+    Image imMaze = { 0 };
+    imMaze.data = pixels;
+    imMaze.width = width;
+    imMaze.height = height;
+    imMaze.mipmaps = 1;
+    imMaze.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    
+    // Retornar la imagen resultante
     return imMaze;
 }
