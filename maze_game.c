@@ -87,6 +87,7 @@ int main(void)
     // Maze items position and state
     Point mazeItems[MAX_MAZE_ITEMS] = { 0 };
     bool mazeItemPicked[MAX_MAZE_ITEMS] = { 0 };
+    int score = 0;
     
     // Define textures to be used as our "biomes"
     Texture texBiomes[4] = { 0 };
@@ -169,12 +170,37 @@ int main(void)
             {
                 DrawText("YOU REACHED THE END!", 200, 200, 40, GREEN);
             }
-
             
             // TODO: [1p] Camera 2D system following player movement around the map
             // Update Camera2D parameters as required to follow player and zoom control
 
             // TODO: [2p] Maze items pickup logic
+            // Revisamos si hay un ítem en esa celda
+            int cornersX[4] = { left,  right, left,  right };
+            int cornersY[4] = { top,   top,  bottom, bottom };
+            for(int c = 0; c < 4; c++)
+            {
+                // Recorremos el array de ítems
+                for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+                {
+                    if (!mazeItemPicked[i])  // Solo comprobamos ítems que NO estén recogidos
+                    {
+                        if ((mazeItems[i].x == cornersX[c]) && (mazeItems[i].y == cornersY[c]))
+                        {
+                            // ¡Recogemos el ítem!
+                            mazeItemPicked[i] = true;
+                            score += 10; // O la cantidad de puntos que quieras
+
+                            // Opcional: Cambiar la celda a negra para que deje de verse roja
+                            ImageDrawPixel(&imMaze, cornersX[c], cornersY[c], BLACK);
+                            UpdateTexture(texMaze, imMaze.data);
+
+                            // También podrías reproducir un sonido, etc.
+                            break;  // Salimos tras recoger el ítem
+                        }
+                    }
+                }
+            }
         }
         else if (currentMode == 1) // Editor mode
         {
@@ -207,8 +233,31 @@ int main(void)
                 // BOTÓN CENTRAL: RED (ítem)
                 else if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
                 {
-                    ImageDrawPixel(&imMaze, cellX, cellY, RED);
-                    UpdateTexture(texMaze, imMaze.data);
+                    Color currentColor = GetImageColor(imMaze, cellX, cellY);
+                    if (!ColorIsEqual(currentColor, RED))  // Solo añadimos si no es ya rojo
+                    {
+                        ImageDrawPixel(&imMaze, cellX, cellY, RED);
+                        UpdateTexture(texMaze, imMaze.data);
+                    
+                        // Guardar la posición del ítem en el array
+                        // Buscamos el primer hueco libre
+                        for (int i = 0; i < MAX_MAZE_ITEMS; i++)
+                        {
+                            // Suponiendo que marcamos como recogidos los que no existen
+                            // O puedes buscar si (mazeItems[i].x == 0 && mazeItems[i].y == 0) 
+                            // si no usas la celda (0,0) para nada
+                            if (!mazeItemPicked[i]) 
+                            {
+                                // Si este slot está libre (puedes verificar con un sentinel)
+                                if ((mazeItems[i].x == 0) && (mazeItems[i].y == 0))
+                                {
+                                    mazeItems[i].x = cellX;
+                                    mazeItems[i].y = cellY;
+                                    break; // Salimos del for tras colocar el ítem
+                                }
+                            }
+                        }
+                    }
                 }
                 // BOTÓN DERECHO: WHITE (pared)
                 else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
@@ -267,6 +316,7 @@ int main(void)
                 // NOTE: Game UI does not receive the camera2d transformations,
                 // it is drawn in screen space coordinates directly
                 DrawText("GAME MODE", 10, 40, 20, DARKGRAY);
+                DrawText(TextFormat("SCORE: %i", score), 10, 60, 20, RED);
             }
             else if (currentMode == 1) // Editor mode
             {
