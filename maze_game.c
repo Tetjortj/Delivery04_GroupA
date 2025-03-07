@@ -168,7 +168,8 @@ int main(void)
 
             if ((centerCellX == endCell.x) && (centerCellY == endCell.y))
             {
-                DrawText("YOU REACHED THE END!", 200, 200, 40, GREEN);
+                CloseWindow();
+                return 0;
             }
             
             // TODO: [1p] Camera 2D system following player movement around the map
