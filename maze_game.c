@@ -211,59 +211,150 @@ Image GenImageMaze(int width, int height, int spacingRows, int spacingCols, floa
     }
 
     // 3) Para cada píxel del borde (excepto esquinas), evaluamos de forma dinámica:
+    Point sprouts[width * height];
+    int sproutsCount = 0;
     
-    // Borde superior: para x de 1 a width-2, pintar (x,1) solo si se decide, y si se pinta, saltar el siguiente
-    for (int x = 1; x < width - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
+    // Borde superior (fila 0 => interno es fila 1)
+    for (int x = 1; x < width - 1; ) {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100)) {
             ImageDrawPixel(&imMaze, x, 1, BLACK);
-            x += 2;
-        }
-        else
-        {
+            sprouts[sproutsCount++] = (Point){ x, 1 };
+            x += 2;  // si se pinta, saltamos el siguiente para evitar adyacencia fija
+        } else {
             x++;
         }
     }
-    // Borde inferior: pintar (x, height-2)
-    for (int x = 1; x < width - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
+    // Borde inferior (fila height-1 => interno es height-2)
+    for (int x = 1; x < width - 1; ) {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100)) {
             ImageDrawPixel(&imMaze, x, height - 2, BLACK);
+            sprouts[sproutsCount++] = (Point){ x, height - 2 };
             x += 2;
-        }
-        else
-        {
+        } else {
             x++;
         }
     }
-    // Borde izquierdo: para y de 1 a height-2, pintar (1, y)
-    for (int y = 1; y < height - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
+    // Borde izquierdo (columna 0 => interno es columna 1)
+    for (int y = 1; y < height - 1; ) {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100)) {
             ImageDrawPixel(&imMaze, 1, y, BLACK);
+            sprouts[sproutsCount++] = (Point){ 1, y };
             y += 2;
-        }
-        else
-        {
+        } else {
             y++;
         }
     }
-    // Borde derecho: para y de 1 a height-2, pintar (width-2, y)
-    for (int y = 1; y < height - 1; )
-    {
-        if (GetRandomValue(0, 99) < (int)(pointChance * 100))
-        {
+    // Borde derecho (columna width-1 => interno es width-2)
+    for (int y = 1; y < height - 1; ) {
+        if (GetRandomValue(0, 99) < (int)(pointChance * 100)) {
             ImageDrawPixel(&imMaze, width - 2, y, BLACK);
+            sprouts[sproutsCount++] = (Point){ width - 2, y };
             y += 2;
-        }
-        else
-        {
+        } else {
             y++;
         }
     }
+    
+        // 4) Extender cada sprout: a partir de cada sprout, se añade otro píxel negro
+    //    en la misma dirección en la que "nació" el sprout.
+    int maxSpaces = (((width - 2) < (height - 2)) ? (width - 2) : (height - 2)) - 1;
+    int minLength = (maxSpaces / 4) < 1 ? 1 : (maxSpaces / 4);
+    
+// Extender paredes a partir de cada sprout
+for (int i = 0; i < sproutsCount; i++) {
+    // Para cada sprout, definimos la longitud de la pared de forma aleatoria entre minLength y maxSpaces
+    int wallLength = GetRandomValue(minLength, maxSpaces);
+    
+    // Establecemos la posición inicial a partir del sprout
+    int curX = sprouts[i].x;
+    int curY = sprouts[i].y;
+    
+    // Definir la dirección base según el borde de origen:
+    // Si el sprout está en la fila 1 (borde superior), la dirección base es hacia abajo (índice 1)
+    // Si está en la fila height-2 (borde inferior), la dirección base es hacia arriba (índice 0)
+    // Si está en la columna 1 (borde izquierdo), la dirección base es hacia la derecha (índice 3)
+    // Si está en la columna width-2 (borde derecho), la dirección base es hacia la izquierda (índice 2)
+    int baseDir = -1;
+    if (sprouts[i].y == 1)
+        baseDir = 1;
+    else if (sprouts[i].y == height - 2)
+        baseDir = 0;
+    else if (sprouts[i].x == 1)
+        baseDir = 3;
+    else if (sprouts[i].x == width - 2)
+        baseDir = 2;
+    
+    // Ahora extendemos la pared para wallLength pasos,
+    // usando siempre la dirección base (no se actualiza en cada paso)
+    for (int step = 0; step < wallLength; step++) {
+        int r = GetRandomValue(0, 99);
+        int chosen;
+        // Según la dirección base, establecemos la distribución:
+        // Por ejemplo, si baseDir == 1 (hacia abajo):
+        // 50% se continúa hacia abajo, 25% se gira a la izquierda y 25% a la derecha.
+        if (baseDir == 1) { // Desde el borde superior, base = abajo
+            if (r < 50)
+                chosen = 1;        // Abajo
+            else if (r < 75)
+                chosen = 2;        // Izquierda
+            else
+                chosen = 3;        // Derecha
+        } else if (baseDir == 0) { // Desde el borde inferior, base = arriba
+            if (r < 50)
+                chosen = 0;        // Arriba
+            else if (r < 75)
+                chosen = 2;        // Izquierda
+            else
+                chosen = 3;        // Derecha
+        } else if (baseDir == 3) { // Desde el borde izquierdo, base = derecha
+            if (r < 50)
+                chosen = 3;        // Derecha
+            else if (r < 75)
+                chosen = 0;        // Arriba
+            else
+                chosen = 1;        // Abajo
+        } else if (baseDir == 2) { // Desde el borde derecho, base = izquierda
+            if (r < 50)
+                chosen = 2;        // Izquierda
+            else if (r < 75)
+                chosen = 0;        // Arriba
+            else
+                chosen = 1;        // Abajo
+        } else {
+            chosen = baseDir; // Fallback (no debería ocurrir)
+        }
+        
+        // Convertir la dirección elegida en desplazamientos
+        int dx = 0, dy = 0;
+        if (chosen == 0)      dy = -1;   // Arriba
+        else if (chosen == 1) dy = 1;    // Abajo
+        else if (chosen == 2) dx = -1;   // Izquierda
+        else if (chosen == 3) dx = 1;    // Derecha
+        
+        // Calculamos el píxel candidato (inmediato adyacente)
+        int candX = curX + dx;
+        int candY = curY + dy;
+        // Y el píxel de comprobación, que es el siguiente en la misma dirección:
+        int checkX = candX + dx;
+        int checkY = candY + dy;
+        
+        // Verificamos que el píxel de comprobación esté dentro de los límites internos (dejando borde)
+        if (checkX < 1 || checkX >= width - 1 || checkY < 1 || checkY >= height - 1)
+            break;
+        
+        // Comprobamos el píxel de comprobación para evitar fusionar paredes
+        Color colCheck = GetImageColor(imMaze, checkX, checkY);
+        if (colCheck.r == 0 && colCheck.g == 0 && colCheck.b == 0)
+            break;
+        
+        // Si pasa la comprobación, dibujamos el píxel candidato en negro
+        ImageDrawPixel(&imMaze, candX, candY, BLACK);
+        // Actualizamos la posición actual
+        curX = candX;
+        curY = candY;
+        // NOTA: No actualizamos la dirección base, se mantiene fija
+    }
+}
 
     return imMaze;
 }
