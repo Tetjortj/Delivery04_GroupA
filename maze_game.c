@@ -39,6 +39,8 @@ int main(void)
     //---------------------------------------------------------
     const int screenWidth = 1280;
     const int screenHeight = 720;
+    
+    float playerSpeed = 2.0f;
 
     InitWindow(screenWidth, screenHeight, "Delivery04 - maze game");
 
@@ -73,6 +75,10 @@ int main(void)
     // Camera 2D for 2d gameplay mode
     // TODO: [2p] Initialize camera parameters as required
     Camera2D camera2d = { 0 };
+    camera2d.target = (Vector2){ player.x + player.width/2, player.y + player.height/2 };
+    camera2d.offset = (Vector2){ screenWidth/2.0f, screenHeight/2.0f };
+    camera2d.rotation = 0.0f;
+    camera2d.zoom = 1.0f;
 
     // Mouse selected cell for maze editing
     Point selectedCell = { 0 };
@@ -106,7 +112,53 @@ int main(void)
             // Implement maze 2D player movement logic (cursors || WASD)
             // Use imMaze pixel information to check collisions
             // Detect if current playerCell == endCell to finish game
+            
+            // 1) Actualizar cámara para que siga al jugador
+            camera2d.target.x = player.x + player.width/2;
+            camera2d.target.y = player.y + player.height/2;
+            
+            // 2) Movimiento del jugador (WASD o flechas).
+            //    - Calculamos la posición "nueva" antes de mover
+            //    - Verificamos si colisionaría con pared (blanca)
+            //    - Si NO colisiona, actualizamos player.x / player.y
+            // Clonamos la posición actual del jugador
+            float newX = player.x;
+            float newY = player.y;
+            if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP))    newY -= playerSpeed;
+            if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))  newY += playerSpeed;
+            if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT))  newX -= playerSpeed;
+            if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) newX += playerSpeed;
+            
+            // 3) Verificamos colisión con pared
+            //    Para ello, obtenemos el centro del jugador y convertimos a coordenadas de celda
+            //    Revisamos el color en imMaze: si es WHITE => pared => no movemos.
+            float centerX = newX + player.width/2;
+            float centerY = newY + player.height/2;
+            int cellX = (int)((centerX - mazePosition.x)/MAZE_SCALE);
+            int cellY = (int)((centerY - mazePosition.y)/MAZE_SCALE);
+            if (cellX < 0) cellX = 0;
+            if (cellX >= MAZE_WIDTH) cellX = MAZE_WIDTH - 1;
+            if (cellY < 0) cellY = 0;
+            if (cellY >= MAZE_HEIGHT) cellY = MAZE_HEIGHT - 1;
 
+            // Obtenemos el color de esa celda
+            Color cellColor = GetImageColor(imMaze, cellX, cellY);
+
+            // Si NO es blanco, podemos movernos
+            if (!ColorIsEqual(cellColor, WHITE))
+            {
+                // Actualizamos posición del jugador
+                player.x = newX;
+                player.y = newY;
+            }
+            
+            // 4) Comprobar si hemos llegado al endCell
+            //    Basta con comparar las celdas del jugador con endCell
+            if ((cellX == endCell.x) && (cellY == endCell.y))
+            {
+                DrawText("YOU REACHED THE END!", 200, 200, 40, GREEN);
+            }
+            
             // TODO: [1p] Camera 2D system following player movement around the map
             // Update Camera2D parameters as required to follow player and zoom control
 
@@ -124,20 +176,15 @@ int main(void)
             
              // 1) Obtener posición del ratón en coordenadas de pantalla
             Vector2 mousePos = GetMousePosition();
-            
-            // 2) Convertir posición de pantalla a coordenadas de celda en la imagen
             float mouseXRelative = (mousePos.x - mazePosition.x)/MAZE_SCALE;
             float mouseYRelative = (mousePos.y - mazePosition.y)/MAZE_SCALE;
-
             int cellX = (int)mouseXRelative;
             int cellY = (int)mouseYRelative;
             
-                        // 3) Comprobar si estamos dentro de los límites de la imagen
+            
             if ((cellX >= 0) && (cellX < MAZE_WIDTH) &&
                 (cellY >= 0) && (cellY < MAZE_HEIGHT))
             {
-                // Revisamos qué botón de ratón está siendo pulsado
-                // y cambiamos el color de esa celda en imMaze.
 
                 // BOTÓN IZQUIERDO: BLACK (camino)
                 if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
@@ -150,19 +197,6 @@ int main(void)
                 {
                     ImageDrawPixel(&imMaze, cellX, cellY, RED);
                     UpdateTexture(texMaze, imMaze.data);
-
-                    // (Opcional) Guardar la posición del ítem en un array 
-                    // para usarlo en el modo juego.
-                    // Ejemplo muy simple:
-                    // for (int i = 0; i < MAX_MAZE_ITEMS; i++)
-                    // {
-                    //     if ((mazeItems[i].x == 0) && (mazeItems[i].y == 0))
-                    //     {
-                    //         mazeItems[i].x = cellX;
-                    //         mazeItems[i].y = cellY;
-                    //         break;
-                    //     }
-                    // }
                 }
                 // BOTÓN DERECHO: WHITE (pared)
                 else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
@@ -208,8 +242,10 @@ int main(void)
                 BeginMode2D(camera2d);
 
                     // TODO: Draw maze walls and floor using current texture biome 
+                    DrawTextureEx(texMaze, mazePosition, 0.0f, MAZE_SCALE, WHITE);
              
                     // TODO: Draw player rectangle or sprite at player position
+                    DrawRectangleRec(player, BLUE);
 
                     // TODO: Draw maze items 2d (using sprite texture?)
 
@@ -218,6 +254,7 @@ int main(void)
                 // TODO: Draw game UI (score, time...) using custom sprites/fonts
                 // NOTE: Game UI does not receive the camera2d transformations,
                 // it is drawn in screen space coordinates directly
+                DrawText("GAME MODE", 10, 10, 20, DARKGRAY);
             }
             else if (currentMode == 1) // Editor mode
             {
@@ -228,8 +265,11 @@ int main(void)
                 DrawRectangleLines(mazePosition.x, mazePosition.y, MAZE_WIDTH*MAZE_SCALE, MAZE_HEIGHT*MAZE_SCALE, RED);
 
                 // TODO: Draw player using a rectangle, consider maze screen coordinates!
+                DrawRectangleRec(player, BLUE);
 
                 // TODO: Draw editor UI required elements
+                DrawText("EDITOR MODE", 10, 10, 20, DARKGRAY);
+                DrawText("Left = BLACK, Middle = RED, Right = WHITE, Right+Ctrl = GREEN", 10, 40, 20, DARKGRAY);
             }
 
             DrawFPS(10, 10);
